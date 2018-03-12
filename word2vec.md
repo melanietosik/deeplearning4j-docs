@@ -254,9 +254,19 @@ With `vec.wordsNearest("word1", numWordsNearest)`, the words printed to the scre
 
 ### Visualizing the Model
 
-We rely on [TSNE](https://lvdmaaten.github.io/tsne/) to reduce the dimensionality of word feature vectors and project words into a two or three-dimensional space. 
+We rely on [TSNE](https://lvdmaaten.github.io/tsne/) to reduce the dimensionality of word feature vectors and project words into a two or three-dimensional space. The default implementation uses the Barnes-Hut-SNE algorithm. It is possible to fall back to traditional TSNE by setting the tradeoff parameter to `.theta(0.0)`.
 
 ``` java
+        // Get model weights
+        WeightLookupTable weightLookupTable = vec.lookupTable();
+
+        // Get list of model vocabulary
+        VocabCache vocabCache = weightLookupTable.getVocabCache();
+        List<String> vocab = new ArrayList<>();
+        for (Object s: vocabCache.words()) {
+            vocab.add(s.toString());
+        }
+
         log.info("Plot TSNE....");
         BarnesHutTsne tsne = new BarnesHutTsne.Builder()
                 .setMaxIter(1000)
@@ -268,8 +278,19 @@ We rely on [TSNE](https://lvdmaaten.github.io/tsne/) to reduce the dimensionalit
                 .normalize(true)
                 .usePca(false)
                 .build();
-        vec.lookupTable().plotVocab(tsne);
+
+        tsne.fit(weightLookupTable.getWeights());
+
+        // Save labels and coordinates to CSV
+        tsne.saveAsFile(vocab, "tsne.csv");
+
+        // Load UI server
+        UIServer uiServer = UIServer.getInstance();
+        StatsStorage statsStorage = new InMemoryStatsStorage();
+        uiServer.attach(statsStorage);       
 ```
+
+Once the UI server is running, open a browser window and go to http://localhost:9000/tsne. Manually upload the saved CSV file and your plot will be generated. Each data point is a unique word from the vocabulary, annotated with its label. You can zoom in and out to inspect your results.
 
 ### Saving, Reloading & Using the Model
 
